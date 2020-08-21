@@ -12,18 +12,36 @@ Video player based on [ffplay](http://ffmpeg.org)
 - Android:
  - Gradle
 ```
-- in coming...
+# required
+allprojects {
+    repositories {
+        jcenter()
+    }
+}
+
+dependencies {
+    # required, enough for most devices.
+    compile 'tv.danmaku.ijk.media:ijkplayer-java:0.8.5.1'
+    compile 'tv.danmaku.ijk.media:ijkplayer-armv7a:0.8.5.1'
+
+    # Other ABIs: optional
+    compile 'tv.danmaku.ijk.media:ijkplayer-armv5:0.8.5.1'
+    compile 'tv.danmaku.ijk.media:ijkplayer-arm64:0.8.5.1'
+    compile 'tv.danmaku.ijk.media:ijkplayer-x86:0.8.5.1'
+    compile 'tv.danmaku.ijk.media:ijkplayer-x86_64:0.8.5.1'
+
+    # ExoPlayer as IMediaPlayer: optional, experimental
+    compile 'tv.danmaku.ijk.media:ijkplayer-exo:0.8.5.1'
+}
 ```
 - iOS
-```
-- in coming...
-```
+ - in coming...
 
 ### My Build Environment
 - Common
  - Mac OS X 10.11.5
 - Android
- - [NDK r10e] (http://developer.android.com/tools/sdk/ndk/index.html)
+ - [NDK r10e](http://developer.android.com/tools/sdk/ndk/index.html)
  - Android Studio 2.1.3
  - Gradle 2.14.1
 - iOS
@@ -37,7 +55,7 @@ Video player based on [ffplay](http://ffmpeg.org)
 
 ### Features
 - Common
- - Enable RTSP [config/module-lite.sh](config/module-lite.sh)
+ - remove rarely used ffmpeg components to reduce binary size [config/module-lite.sh](config/module-lite.sh)
  - workaround for some buggy online video.
 - Android
  - platform: API 9~23
@@ -117,8 +135,10 @@ sudo dpkg-reconfigure dash
 
 ### Build Android
 ```
-git clone https://github.com/baka3k/IjkPlayerRecorder.git
-cd IjkPlayerRecorder
+git clone https://github.com/Bilibili/ijkplayer.git ijkplayer-android
+cd ijkplayer-android
+git checkout -B latest k0.8.5.1
+
 ./init-android.sh
 
 cd android/contrib
@@ -128,23 +148,50 @@ cd android/contrib
 cd ..
 ./compile-ijk.sh all
 
-After successed, you can find *so file from
-- /IjkPlayerRecorder/android/ijkplayer/ijkplayer-armv7a/src/main/libs/armeabi-v7a
-- /IjkPlayerRecorder/android/ijkplayer/ijkplayer-armv5/src/main/libs/armeabi
-- /IjkPlayerRecorder/android/ijkplayer/ijkplayer-arm64/src/main/libs/arm64-v8a
+# Android Studio:
+#     Open an existing Android Studio project
+#     Select android/ijkplayer/ and import
+#
+#     define ext block in your root build.gradle
+#     ext {
+#       compileSdkVersion = 23       // depending on your sdk version
+#       buildToolsVersion = "23.0.0" // depending on your build tools version
+#
+#       targetSdkVersion = 23        // depending on your sdk version
+#     }
+#
+# If you want to enable debugging ijkplayer(native modules) on Android Studio 2.2+: (experimental)
+#     sh android/patch-debugging-with-lldb.sh armv7a
+#     Install Android Studio 2.2(+)
+#     Preference -> Android SDK -> SDK Tools
+#     Select (LLDB, NDK, Android SDK Build-tools,Cmake) and install
+#     Open an existing Android Studio project
+#     Select android/ijkplayer
+#     Sync Project with Gradle Files
+#     Run -> Edit Configurations -> Debugger -> Symbol Directories
+#     Add "ijkplayer-armv7a/.externalNativeBuild/ndkBuild/release/obj/local/armeabi-v7a" to Symbol Directories
+#     Run -> Debug 'ijkplayer-example'
+#     if you want to reverse patches:
+#     sh patch-debugging-with-lldb.sh reverse armv7a
+#
+# Eclipse: (obselete)
+#     File -> New -> Project -> Android Project from Existing Code
+#     Select android/ and import all project
+#     Import appcompat-v7
+#     Import preference-v7
+#
+# Gradle
+#     cd ijkplayer
+#     gradle
 
-Open sample project by Android Studio
-- IjkPlayerRecorder/android/ijkplayer/ijkplayer-example
-Then copy *so files(with folder armeabi-v7a,armeabi,arm64-v8a) to libs(or jniLibs - depend android studio version 
-Sync gradle and build android project
-Have fun :)
 ```
 
 
 ### Build iOS
 ```
-git clone https://github.com/baka3k/IjkPlayerRecorder.git
-cd IjkPlayerRecorder
+git clone https://github.com/Bilibili/ijkplayer.git ijkplayer-ios
+cd ijkplayer-ios
+git checkout -B latest k0.8.5.1
 
 ./init-ios.sh
 
@@ -184,7 +231,7 @@ cd ios
 
 ### Support (支持) ###
 - Please do not send e-mail to me. Public technical discussion on github is preferred.
-- https://github.com/bilibili/ijkplayer/issues
+- 请尽量在 github 上公开讨论[技术问题](https://github.com/bilibili/ijkplayer/issues)，不要以邮件方式私下询问，恕不一一回复。
 
 
 ### License

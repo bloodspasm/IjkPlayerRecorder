@@ -84,9 +84,6 @@ typedef NS_ENUM(NSInteger, IJKMPMovieTimeOption) {
 @property(nonatomic, readonly)  BOOL isPreparedToPlay;
 @property(nonatomic, readonly)  IJKMPMoviePlaybackState playbackState;
 @property(nonatomic, readonly)  IJKMPMovieLoadState loadState;
-@property(nonatomic, readonly) int isSeekBuffering;
-@property(nonatomic, readonly) int isAudioSync;
-@property(nonatomic, readonly) int isVideoSync;
 
 @property(nonatomic, readonly) int64_t numberOfBytesTransferred;
 
@@ -102,9 +99,6 @@ typedef NS_ENUM(NSInteger, IJKMPMovieTimeOption) {
 @property (nonatomic) float playbackVolume;
 
 - (UIImage *)thumbnailImageAtCurrentTime;
-- (void)stopRecord;
-- (void)startRecordWithFileName:(NSString *)fileName;
-- (BOOL)isRecording;
 
 #pragma mark Notifications
 
@@ -165,8 +159,6 @@ IJK_EXTERN NSString *const IJKMPMoviePlayerDidSeekCompleteTargetKey;
 IJK_EXTERN NSString *const IJKMPMoviePlayerDidSeekCompleteErrorKey;
 IJK_EXTERN NSString *const IJKMPMoviePlayerDidAccurateSeekCompleteCurPos;
 IJK_EXTERN NSString *const IJKMPMoviePlayerAccurateSeekCompleteNotification;
-IJK_EXTERN NSString *const IJKMPMoviePlayerSeekAudioStartNotification;
-IJK_EXTERN NSString *const IJKMPMoviePlayerSeekVideoStartNotification;
 
 @end
 
@@ -194,7 +186,6 @@ typedef NS_ENUM(NSInteger, IJKMediaEvent) {
 #define IJKMediaEventAttrKey_time_of_event  @"time_of_event"
 #define IJKMediaEventAttrKey_http_code      @"http_code"
 #define IJKMediaEventAttrKey_offset         @"offset"
-#define IJKMediaEventAttrKey_file_size      @"file_size"
 
 // event of IJKMediaUrlOpenEvent_xxx
 @interface IJKMediaUrlOpenData: NSObject

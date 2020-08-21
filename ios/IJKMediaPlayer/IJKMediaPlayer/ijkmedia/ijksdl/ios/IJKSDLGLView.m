@@ -85,8 +85,7 @@ typedef NS_ENUM(NSInteger, IJKSDLGLViewApplicationState) {
         [self registerApplicationObservers];
 
         _didSetupGL = NO;
-        if ([self isApplicationActive] == YES)
-            [self setupGLOnce];
+        [self setupGLOnce];
     }
 
     return self;
@@ -258,9 +257,6 @@ typedef NS_ENUM(NSInteger, IJKSDLGLViewApplicationState) {
 - (void)layoutSubviews
 {
     [super layoutSubviews];
-    if (self.window.screen != nil) {
-        _scaleFactor = self.window.screen.scale;
-    }
     [self invalidateRenderBuffer];
 }
 
@@ -334,31 +330,29 @@ typedef NS_ENUM(NSInteger, IJKSDLGLViewApplicationState) {
 
 - (void)display: (SDL_VoutOverlay *) overlay
 {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (_didSetupGL == NO)
-            return;
+    if (_didSetupGL == NO)
+        return;
 
-        if ([self isApplicationActive] == NO)
-            return;
+    if ([self isApplicationActive] == NO)
+        return;
 
-        if (![self tryLockGLActive]) {
-            if (0 == (_tryLockErrorCount % 100)) {
-                NSLog(@"IJKSDLGLView:display: unable to tryLock GL active: %d\n", _tryLockErrorCount);
-            }
-            _tryLockErrorCount++;
-            return;
+    if (![self tryLockGLActive]) {
+        if (0 == (_tryLockErrorCount % 100)) {
+            NSLog(@"IJKSDLGLView:display: unable to tryLock GL active: %d\n", _tryLockErrorCount);
         }
+        _tryLockErrorCount++;
+        return;
+    }
 
-        _tryLockErrorCount = 0;
-        if (_context && !_didStopGL) {
-            EAGLContext *prevContext = [EAGLContext currentContext];
-            [EAGLContext setCurrentContext:_context];
-            [self displayInternal:overlay];
-            [EAGLContext setCurrentContext:prevContext];
-        }
+    _tryLockErrorCount = 0;
+    if (_context && !_didStopGL) {
+        EAGLContext *prevContext = [EAGLContext currentContext];
+        [EAGLContext setCurrentContext:_context];
+        [self displayInternal:overlay];
+        [EAGLContext setCurrentContext:prevContext];
+    }
 
-        [self unlockGLActive];
-    });
+    [self unlockGLActive];
 }
 
 // NOTE: overlay could be NULl
@@ -372,40 +366,40 @@ typedef NS_ENUM(NSInteger, IJKSDLGLViewApplicationState) {
         }
         return;
     }
-    
-        [[self eaglLayer] setContentsScale:_scaleFactor];
 
-        if (_isRenderBufferInvalidated) {
-            NSLog(@"IJKSDLGLView: renderbufferStorage fromDrawable\n");
-            _isRenderBufferInvalidated = NO;
+    [[self eaglLayer] setContentsScale:_scaleFactor];
 
-            glBindRenderbuffer(GL_RENDERBUFFER, _renderbuffer);
-            [_context renderbufferStorage:GL_RENDERBUFFER fromDrawable:(CAEAGLLayer*)self.layer];
-            glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &_backingWidth);
-            glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &_backingHeight);
-            IJK_GLES2_Renderer_setGravity(_renderer, _rendererGravity, _backingWidth, _backingHeight);
-        }
-
-        glBindFramebuffer(GL_FRAMEBUFFER, _framebuffer);
-        glViewport(0, 0, _backingWidth, _backingHeight);
-
-        if (!IJK_GLES2_Renderer_renderOverlay(_renderer, overlay))
-            ALOGE("[EGL] IJK_GLES2_render failed\n");
+    if (_isRenderBufferInvalidated) {
+        NSLog(@"IJKSDLGLView: renderbufferStorage fromDrawable\n");
+        _isRenderBufferInvalidated = NO;
 
         glBindRenderbuffer(GL_RENDERBUFFER, _renderbuffer);
-        [_context presentRenderbuffer:GL_RENDERBUFFER];
+        [_context renderbufferStorage:GL_RENDERBUFFER fromDrawable:(CAEAGLLayer*)self.layer];
+        glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &_backingWidth);
+        glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &_backingHeight);
+        IJK_GLES2_Renderer_setGravity(_renderer, _rendererGravity, _backingWidth, _backingHeight);
+    }
 
-        int64_t current = (int64_t)SDL_GetTickHR();
-        int64_t delta   = (current > _lastFrameTime) ? current - _lastFrameTime : 0;
-        if (delta <= 0) {
-            _lastFrameTime = current;
-        } else if (delta >= 1000) {
-            _fps = ((CGFloat)_frameCount) * 1000 / delta;
-            _frameCount = 0;
-            _lastFrameTime = current;
-        } else {
-            _frameCount++;
-        }
+    glBindFramebuffer(GL_FRAMEBUFFER, _framebuffer);
+    glViewport(0, 0, _backingWidth, _backingHeight);
+
+    if (!IJK_GLES2_Renderer_renderOverlay(_renderer, overlay))
+        ALOGE("[EGL] IJK_GLES2_render failed\n");
+
+    glBindRenderbuffer(GL_RENDERBUFFER, _renderbuffer);
+    [_context presentRenderbuffer:GL_RENDERBUFFER];
+
+    int64_t current = (int64_t)SDL_GetTickHR();
+    int64_t delta   = (current > _lastFrameTime) ? current - _lastFrameTime : 0;
+    if (delta <= 0) {
+        _lastFrameTime = current;
+    } else if (delta >= 1000) {
+        _fps = ((CGFloat)_frameCount) * 1000 / delta;
+        _frameCount = 0;
+        _lastFrameTime = current;
+    } else {
+        _frameCount++;
+    }
 }
 
 #pragma mark AppDelegate
@@ -502,7 +496,6 @@ typedef NS_ENUM(NSInteger, IJKSDLGLViewApplicationState) {
 - (void)applicationWillEnterForeground
 {
     NSLog(@"IJKSDLGLView:applicationWillEnterForeground: %d", (int)[UIApplication sharedApplication].applicationState);
-    [self setupGLOnce];
     _applicationState = IJKSDLGLViewApplicationForegroundState;
     [self toggleGLPaused:NO];
 }
@@ -510,7 +503,6 @@ typedef NS_ENUM(NSInteger, IJKSDLGLViewApplicationState) {
 - (void)applicationDidBecomeActive
 {
     NSLog(@"IJKSDLGLView:applicationDidBecomeActive: %d", (int)[UIApplication sharedApplication].applicationState);
-    [self setupGLOnce];
     [self toggleGLPaused:NO];
 }
 
@@ -518,7 +510,6 @@ typedef NS_ENUM(NSInteger, IJKSDLGLViewApplicationState) {
 {
     NSLog(@"IJKSDLGLView:applicationWillResignActive: %d", (int)[UIApplication sharedApplication].applicationState);
     [self toggleGLPaused:YES];
-    glFinish();
 }
 
 - (void)applicationDidEnterBackground
@@ -526,7 +517,6 @@ typedef NS_ENUM(NSInteger, IJKSDLGLViewApplicationState) {
     NSLog(@"IJKSDLGLView:applicationDidEnterBackground: %d", (int)[UIApplication sharedApplication].applicationState);
     _applicationState = IJKSDLGLViewApplicationBackgroundState;
     [self toggleGLPaused:YES];
-    glFinish();
 }
 
 - (void)applicationWillTerminate

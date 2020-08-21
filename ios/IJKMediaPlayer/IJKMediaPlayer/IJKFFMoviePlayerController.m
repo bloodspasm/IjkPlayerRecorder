@@ -34,7 +34,7 @@
 #import "ijkioapplication.h"
 #include "string.h"
 
-static const char *kIJKFFRequiredFFmpegVersion = "ff3.4--ijk0.8.7--20180103--001";
+static const char *kIJKFFRequiredFFmpegVersion = "ff3.3--ijk0.8.0--20170829--001";
 
 // It means you didn't call shutdown if you found this object leaked.
 @interface IJKWeakHolder : NSObject
@@ -99,9 +99,6 @@ static const char *kIJKFFRequiredFFmpegVersion = "ff3.4--ijk0.8.7--20180103--001
 
 @synthesize monitor = _monitor;
 @synthesize shouldShowHudView           = _shouldShowHudView;
-@synthesize isSeekBuffering = _isSeekBuffering;
-@synthesize isAudioSync = _isAudioSync;
-@synthesize isVideoSync = _isVideoSync;
 
 #define FFP_IO_STAT_STEP (50 * 1024)
 
@@ -450,19 +447,6 @@ void IJKFFIOStatCompleteRegister(void (*cb)(const char *url,
     return ijkmp_is_playing(_mediaPlayer);
 }
 
-- (void)stopRecord {
-    ijkmp_stop_recording(_mediaPlayer);
-}
-
-- (void)startRecordWithFileName:(NSString *)fileName {
-    const char *path = [fileName cStringUsingEncoding:NSUTF8StringEncoding];
-    ijkmp_start_recording(_mediaPlayer, path);
-}
-
-- (BOOL)isRecording {
-    return ijkmp_isRecording(_mediaPlayer);
-}
-    
 - (void)setPauseInBackground:(BOOL)pause
 {
     _pauseInBackground = pause;
@@ -766,8 +750,8 @@ inline static int getPlayerOption(IJKFFOptionCategory category)
 
 - (UIImage *)thumbnailImageAtCurrentTime
 {
-    if ([_view conformsToProtocol:@protocol(IJKSDLGLViewProtocol)]) {
-        id<IJKSDLGLViewProtocol> glView = (id<IJKSDLGLViewProtocol>)_view;
+    if ([_view isKindOfClass:[IJKSDLGLView class]]) {
+        IJKSDLGLView *glView = (IJKSDLGLView *)_view;
         return [glView snapshot];
     }
 
@@ -1196,12 +1180,10 @@ inline static void fillMetaInternal(NSMutableDictionary *meta, IjkMediaMeta *raw
             _monitor.lastPrerollStartTick = (int64_t)SDL_GetTickHR();
 
             _loadState = IJKMPMovieLoadStateStalled;
-            _isSeekBuffering = avmsg->arg1;
 
             [[NSNotificationCenter defaultCenter]
              postNotificationName:IJKMPMoviePlayerLoadStateDidChangeNotification
              object:self];
-            _isSeekBuffering = 0;
             break;
         }
         case FFP_MSG_BUFFERING_END: {
@@ -1210,7 +1192,6 @@ inline static void fillMetaInternal(NSMutableDictionary *meta, IjkMediaMeta *raw
             _monitor.lastPrerollDuration = (int64_t)SDL_GetTickHR() - _monitor.lastPrerollStartTick;
 
             _loadState = IJKMPMovieLoadStatePlayable | IJKMPMovieLoadStatePlaythroughOK;
-            _isSeekBuffering = avmsg->arg1;
 
             [[NSNotificationCenter defaultCenter]
              postNotificationName:IJKMPMoviePlayerLoadStateDidChangeNotification
@@ -1218,7 +1199,6 @@ inline static void fillMetaInternal(NSMutableDictionary *meta, IjkMediaMeta *raw
             [[NSNotificationCenter defaultCenter]
              postNotificationName:IJKMPMoviePlayerPlaybackStateDidChangeNotification
              object:self];
-            _isSeekBuffering = 0;
             break;
         }
         case FFP_MSG_BUFFERING_UPDATE:
@@ -1312,24 +1292,6 @@ inline static void fillMetaInternal(NSMutableDictionary *meta, IjkMediaMeta *raw
              postNotificationName:IJKMPMoviePlayerAccurateSeekCompleteNotification
              object:self
              userInfo:@{IJKMPMoviePlayerDidAccurateSeekCompleteCurPos: @(avmsg->arg1)}];
-            break;
-        }
-        case FFP_MSG_VIDEO_SEEK_RENDERING_START: {
-            NSLog(@"FFP_MSG_VIDEO_SEEK_RENDERING_START:\n");
-            _isVideoSync = avmsg->arg1;
-            [[NSNotificationCenter defaultCenter]
-             postNotificationName:IJKMPMoviePlayerSeekVideoStartNotification
-             object:self];
-            _isVideoSync = 0;
-            break;
-        }
-        case FFP_MSG_AUDIO_SEEK_RENDERING_START: {
-            NSLog(@"FFP_MSG_AUDIO_SEEK_RENDERING_START:\n");
-            _isAudioSync = avmsg->arg1;
-            [[NSNotificationCenter defaultCenter]
-             postNotificationName:IJKMPMoviePlayerSeekAudioStartNotification
-             object:self];
-            _isAudioSync = 0;
             break;
         }
         default:
@@ -1519,7 +1481,6 @@ static int onInjectOnHttpEvent(IJKFFMoviePlayerController *mpc, int type, void *
             elapsed = calculateElapsed(monitor.httpOpenTick, SDL_GetTickHR());
             monitor.httpError = realData->error;
             monitor.httpCode  = realData->http_code;
-            monitor.filesize  = realData->filesize;
             monitor.httpOpenCount++;
             monitor.httpOpenTick = 0;
             monitor.lastHttpOpenDuration = elapsed;
@@ -1531,7 +1492,6 @@ static int onInjectOnHttpEvent(IJKFFMoviePlayerController *mpc, int type, void *
                 dict[IJKMediaEventAttrKey_host]             = [NSString ijk_stringBeEmptyIfNil:host];
                 dict[IJKMediaEventAttrKey_error]            = @(realData->error).stringValue;
                 dict[IJKMediaEventAttrKey_http_code]        = @(realData->http_code).stringValue;
-                dict[IJKMediaEventAttrKey_file_size]        = @(realData->filesize).stringValue;
                 [delegate invoke:type attributes:dict];
             }
             break;

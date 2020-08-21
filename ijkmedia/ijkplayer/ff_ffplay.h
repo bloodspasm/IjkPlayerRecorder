@@ -64,11 +64,6 @@ int       ffp_is_paused_l(FFPlayer *ffp);
 int       ffp_stop_l(FFPlayer *ffp);
 int       ffp_wait_stop_l(FFPlayer *ffp);
 
-/* record rtsp streaming */
-int ffp_start_recording_l(FFPlayer *ffp, const char *file_name);
-int ffp_record_isfinished_l(FFPlayer *ffp);
-int ffp_stop_recording_l(FFPlayer *ffp);
-void ffp_get_current_frame_l(FFPlayer *ffp, uint8_t *frame_buf);
 /* all in milliseconds */
 int       ffp_seek_to_l(FFPlayer *ffp, long msec);
 long      ffp_get_current_position_l(FFPlayer *ffp);
