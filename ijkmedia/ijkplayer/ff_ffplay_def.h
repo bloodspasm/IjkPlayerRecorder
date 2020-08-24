@@ -66,7 +66,7 @@
 #include "ff_ffpipenode.h"
 #include "ijkmeta.h"
 
-#define DEFAULT_HIGH_WATER_MARK_IN_BYTES        (256 * 1024)
+#define DEFAULT_HIGH_WATER_MARK_IN_BYTES        (30 * 1024)
 
 /*
  * START: buffering after prepared/seeked
@@ -75,17 +75,17 @@
  */
 #define DEFAULT_FIRST_HIGH_WATER_MARK_IN_MS     (100)
 #define DEFAULT_NEXT_HIGH_WATER_MARK_IN_MS      (1 * 1000)
-#define DEFAULT_LAST_HIGH_WATER_MARK_IN_MS      (5 * 1000)
+#define DEFAULT_LAST_HIGH_WATER_MARK_IN_MS      (1 * 1000)
 
 #define BUFFERING_CHECK_PER_BYTES               (512)
-#define BUFFERING_CHECK_PER_MILLISECONDS        (500)
+#define BUFFERING_CHECK_PER_MILLISECONDS        (50)
 #define FAST_BUFFERING_CHECK_PER_MILLISECONDS   (50)
 #define MAX_RETRY_CONVERT_IMAGE                 (3)
 
 #define MAX_QUEUE_SIZE (15 * 1024 * 1024)
 #define MAX_ACCURATE_SEEK_TIMEOUT (5000)
 #ifdef FFP_MERGE
-#define MIN_FRAMES 25
+#define MIN_FRAMES 5
 #endif
 #define DEFAULT_MIN_FRAMES  50000
 #define MIN_MIN_FRAMES      2
@@ -402,18 +402,22 @@ typedef struct VideoState {
 
     PacketQueue *buffer_indicator_queue;
 
-    volatile int latest_seek_load_serial;
+    volatile int latest_video_seek_load_serial;
+    volatile int latest_audio_seek_load_serial;
     volatile int64_t latest_seek_load_start_at;
 
     int drop_aframe_count;
     int drop_vframe_count;
     int64_t accurate_seek_start_time;
     volatile int64_t accurate_seek_vframe_pts;
+    volatile int64_t accurate_seek_aframe_pts;
     int audio_accurate_seek_req;
     int video_accurate_seek_req;
     SDL_mutex *accurate_seek_mutex;
     SDL_cond  *video_accurate_seek_cond;
     SDL_cond  *audio_accurate_seek_cond;
+    volatile int initialized_decoder;
+    int seek_buffering;
 } VideoState;
 
 /* options specified by the user */
@@ -432,7 +436,7 @@ static const char* wanted_stream_spec[AVMEDIA_TYPE_NB] = {0};
 static int seek_by_bytes = -1;
 static int display_disable;
 static int show_status = 1;
-static int av_sync_type = AV_SYNC_AUDIO_MASTER;
+static int av_sync_type = AV_SYNC_EXTERNAL_CLOCK;
 static int64_t start_time = AV_NOPTS_VALUE;
 static int64_t duration = AV_NOPTS_VALUE;
 static int fast = 0;
@@ -458,6 +462,7 @@ static int nb_vfilters = 0;
 static char *afilters = NULL;
 #endif
 static int autorotate = 1;
+static int find_stream_info = 1;
 
 /* current context */
 static int is_full_screen;
@@ -615,7 +620,7 @@ typedef struct FFPlayer {
     char *vfilter0;
 #endif
     int autorotate;
-
+    int find_stream_info;
     unsigned sws_flags;
 
     /* current context */
@@ -710,6 +715,22 @@ typedef struct FFPlayer {
     int skip_calc_frame_rate;
     int get_frame_mode;
     GetImgInfo *get_img_info;
+    int async_init_decoder;
+    char *video_mime_type;
+    char *mediacodec_default_name;
+    int ijkmeta_delay_init;
+    int render_wait_start;
+    
+    AVFormatContext *m_ofmt_ctx;
+    AVOutputFormat *m_ofmt;
+    pthread_mutex_t record_mutex;
+    int is_record;
+    int record_error;
+    int is_first;
+    int64_t start_v_pts;
+    int64_t start_v_dts;
+    int64_t start_a_pts;
+    int64_t start_a_dts;
 } FFPlayer;
 
 #define fftime_to_milliseconds(ts) (av_rescale(ts, 1000, AV_TIME_BASE))
@@ -759,6 +780,7 @@ inline static void ffp_reset_internal(FFPlayer *ffp)
     ffp->vfilter0               = NULL;
 #endif
     ffp->autorotate             = 1;
+    ffp->find_stream_info       = 1;
 
     ffp->sws_flags              = SWS_FAST_BILINEAR;
 
@@ -814,6 +836,11 @@ inline static void ffp_reset_internal(FFPlayer *ffp)
     ffp->iformat_name                   = NULL; // option
 
     ffp->no_time_adjust                 = 0; // option
+    ffp->async_init_decoder             = 0; // option
+    ffp->video_mime_type                = NULL; // option
+    ffp->mediacodec_default_name        = NULL; // option
+    ffp->ijkmeta_delay_init             = 0; // option
+    ffp->render_wait_start              = 0;
 
     ijkmeta_reset(ffp->meta);
 

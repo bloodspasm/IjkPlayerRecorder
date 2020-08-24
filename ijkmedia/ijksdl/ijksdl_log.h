@@ -64,9 +64,10 @@
 #define IJK_LOG_FATAL       7
 #define IJK_LOG_SILENT      8
 
-#define VLOG(level, TAG, ...)    ((void)vprintf(__VA_ARGS__))
-#define ALOG(level, TAG, ...)    ((void)printf(__VA_ARGS__))
-
+//#define VLOG(level, TAG, ...)
+//#define ALOG(level, TAG, ...)
+#define VLOG(level, TAG, ...) ((void)vprintf(__VA_ARGS__))
+#define ALOG(level, TAG, ...) ((void)printf(__VA_ARGS__))
 #endif
 
 #define IJK_LOG_TAG "IJKMEDIA"

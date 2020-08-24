@@ -150,7 +150,10 @@ struct SDL_Vout;
 #define IJKMP_OPT_CATEGORY_PLAYER FFP_OPT_CATEGORY_PLAYER
 #define IJKMP_OPT_CATEGORY_SWR    FFP_OPT_CATEGORY_SWR
 
-
+int ijkmp_start_recording(IjkMediaPlayer *mp, const char *filePath);
+int ijkmp_stop_recording(IjkMediaPlayer *mp);
+int ijkmp_isRecording(IjkMediaPlayer *mp);
+void ijkmp_get_current_frame(IjkMediaPlayer *mp,uint8_t *frame_buf);
 void            ijkmp_global_init();
 void            ijkmp_global_uninit();
 void            ijkmp_global_set_log_report(int use_report);

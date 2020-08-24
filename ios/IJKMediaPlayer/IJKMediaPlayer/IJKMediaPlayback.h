@@ -99,6 +99,9 @@ typedef NS_ENUM(NSInteger, IJKMPMovieTimeOption) {
 @property (nonatomic) float playbackVolume;
 
 - (UIImage *)thumbnailImageAtCurrentTime;
+- (void)stopRecord;
+- (void)startRecordWithFileName:(NSString *)fileName;
+- (BOOL)isRecording;
 
 #pragma mark Notifications
 
